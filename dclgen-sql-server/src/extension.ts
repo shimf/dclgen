@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { LocalStorageService } from './localStorageService';
 
 
 // This method is called when your extension is activated
@@ -18,39 +19,154 @@ export function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		
-		const connectionString = await vscode.window.showInputBox({
-			prompt: 'Enter the connection string',
-			placeHolder: 'Server=<server>;Database=<database>;User Id=<user>;Password=<password>;',
-		  });
-		
-		  if (connectionString) {
-			await generateTablesFile(connectionString);
-		  }
+		const connections = getConnections();
+		let connection;
+		if (connections?.length === 0) {
+			connection = await addNewConnection();
+		}
+		else {
+			const connectionName = await vscode.window.showQuickPick([...connections.map((c: any) => c.name), "+ Add new connection"]);
+			if (connectionName === "+ Add new connection") {
+				connection = await addNewConnection();
+			}
+			else{
+				connection = connections.find(c => c.name === connectionName);
+			}
+		}
 
-		
+		if (connection) {
+			await generateTablesFile(connection.dbconfig);
+		}
 
 
 	});
 
 	context.subscriptions.push(disposable);
 
-	async function generateTablesFile(conn: string){
-		const sql = require('mssql');
+	async function addNewConnection() : Promise<Config | undefined> {
+		const server = await vscode.window.showInputBox({
+			prompt: 'Enter server name or address',
+			placeHolder: 'localhost',
+		});
 
-		const config = {
-			user: 'sa',
-			password: 'karj1sf',
-			server: 'localhost',
-			database: 'Birding',
-			// port: 1433,
-			options: {
+		if (!server) { return undefined; }
+
+		const database = await vscode.window.showInputBox({
+			prompt: 'Enter database name',
+			placeHolder: '',
+		});
+
+		if (!database) { return undefined; }
+
+		let isTrusted = await vscode.window.showInputBox({
+			prompt: 'Use trusted connection (y/n)',
+			placeHolder: '',
+		});
+
+		while (isTrusted?.toLocaleLowerCase() !== 'y' && isTrusted?.toLocaleLowerCase() !== 'n') {
+			isTrusted = await vscode.window.showInputBox({
+				prompt: 'Use trusted connection (y/n)',
+				placeHolder: '',
+			});
+
+			if (!isTrusted) {
+				return undefined;
+			}
+		}
+
+		let savePassword;
+
+		const config: any = {
+			server,
+			database,
+				options: {
 				enableArithAbort: true,
 				encrypt: true, // for azure
 				trustServerCertificate: true // change to true for local dev / self-signed certs
 			},
+
 		};
 
-		// vscode.window.showInformationMessage('before pool!');
+		if (isTrusted === 'n') {
+			const user = await vscode.window.showInputBox({
+				prompt: 'Enter user name',
+				placeHolder: '',
+			});
+
+			if (!user) { return undefined; }
+
+			config.user = user;
+
+			const keepPassword = await vscode.window.showInputBox({
+				prompt: 'Save password (Y/n)',
+				placeHolder: 'y',
+			});
+
+			if (!keepPassword) { 
+				savePassword = true; 
+			}
+			else {
+				savePassword = keepPassword?.toLocaleLowerCase() === 'y';
+			}
+
+			if (savePassword) {
+				const password = await vscode.window.showInputBox({
+					prompt: 'Enter password',
+					placeHolder: '',
+				});
+
+				config.password = password;
+			}
+
+		}
+		else {
+			// config.options.trustedConnection = true;
+			config.integratedSecurity = true;
+			savePassword = false;
+		}
+
+		const name = await vscode.window.showInputBox({
+			prompt: 'Enter connection name',
+			placeHolder: '',
+		});
+
+
+		if (!name) { 
+			vscode.window.showWarningMessage("Can't create connection without a name");
+			return undefined;
+		}
+
+		let conns = getConnections();
+
+		const newconn: Config = {
+			name,
+			savePassword,
+			dbconfig: config
+		};
+
+		conns.push(newconn);
+		saveConnectionStrings(conns);
+
+		return newconn;
+
+	}
+
+	async function generateTablesFile(config: any) {
+		const sql = require('mssql');
+
+		// const config = {
+		// 	user: 'sa',
+		// 	password: 'karj1sf',
+		// 	server: 'localhost',
+		// 	database: 'Birding',
+		// 	// port: 1433,
+		// 	options: {
+		// 		enableArithAbort: true,
+		// 		encrypt: true, // for azure
+		// 		trustServerCertificate: true // change to true for local dev / self-signed certs
+		// 	},
+		// };
+
 		const pool = await sql.connect(config);
 		// vscode.window.showInformationMessage('after pool!');
 
@@ -147,11 +263,34 @@ export function activate(context: vscode.ExtensionContext) {
 
 		});
 
-		if (anyFieldNotNull) { 
-			dclgen += '\n\n\n' + dclgenNulls; 
+		if (anyFieldNotNull) {
+			dclgen += '\n\n\n' + dclgenNulls;
 		}
 
 		return dclgen;
+	}
+
+	function getConnections() : Config[] {
+		const storageManager = new LocalStorageService(context.globalState);
+
+		const storedConnections = storageManager.getValue<Config[]>('dclgen.sqlserver.connectionStrings');
+
+		return storedConnections ?? [];
+	}
+
+	// function testSave(){
+
+
+	// 	storageManager.setValue('dclgentest', 'aaa');
+
+	// 	const val = storageManager.getValue('dclgentest');
+
+	// 	console.log(val);
+	// }
+
+	function saveConnectionStrings(connections: Config[]) {
+		const storageManager = new LocalStorageService(context.globalState);
+		storageManager.setValue<Config[]>('dclgen.sqlserver.connectionStrings', connections);
 	}
 }
 
