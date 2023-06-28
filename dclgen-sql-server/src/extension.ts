@@ -154,19 +154,6 @@ export function activate(context: vscode.ExtensionContext) {
 	async function generateTablesFile(config: any) {
 		const sql = require('mssql');
 
-		// const config = {
-		// 	user: 'sa',
-		// 	password: 'karj1sf',
-		// 	server: 'localhost',
-		// 	database: 'Birding',
-		// 	// port: 1433,
-		// 	options: {
-		// 		enableArithAbort: true,
-		// 		encrypt: true, // for azure
-		// 		trustServerCertificate: true // change to true for local dev / self-signed certs
-		// 	},
-		// };
-
 		const pool = await sql.connect(config);
 		// vscode.window.showInformationMessage('after pool!');
 
