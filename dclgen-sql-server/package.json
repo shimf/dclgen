@@ -1,7 +1,9 @@
 {
   "name": "dclgen-sql-server",
-  "displayName": "dclgen-sql-server",
-  "description": "Generate Cobol copy based on a table in Sql-Server",
+  "displayName": "DCLGEN For Sql Server Tables",
+  "publisher": "Shimshon Fishler",
+  "pricing": "Free",
+  "description": "Generate Cobol copybook based on a table in Sql-Server",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.79.0"
@@ -47,7 +49,6 @@
     "webpack-cli": "^5.1.1"
   },
   "dependencies": {
-    "mssql": "^9.1.1",
-    "vscode": "^1.1.37"
+    "mssql": "^9.1.1"
   }
 }

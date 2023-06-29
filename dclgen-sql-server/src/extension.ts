@@ -219,23 +219,24 @@ export function activate(context: vscode.ExtensionContext) {
 		let anyFieldNotNull = false;
 
 
-		let dclgen = " ".repeat(9) + "01 DCLGEN_" + table.toUpperCase() + ".\n";
+		let dclgen = " ".repeat(9) + "01 DCL-" + table.toUpperCase() + ".\n";
 
-		let dclgenNulls = " ".repeat(9) + "01 DCLGEN_" + table.toUpperCase() + "_NULLS.\n";
+		let dclgenNulls = " ".repeat(9) + "01 DCL-" + table.toUpperCase() + "-NULL.\n";
 
 		tableFields.forEach((field: any) => {
 			dclgen += " ".repeat(12) + "03 " + field.COLUMN_NAME.toUpperCase() + " ";
 			switch (field.DATA_TYPE) {
 				case 'int':
-					dclgen += "PIC 9(9)";
+				case 'bit':					
+					dclgen += "PIC 9(9) COMP-5";
 					break;
 				case 'nvarchar':
 				case 'varchar':
-					dclgen += "PIC X(" + field.CHARACTER_MAXIMUM_LENGTH.toString() + ")";
+					dclgen += "SQL TYPE IS CHAR (" + field.CHARACTER_MAXIMUM_LENGTH.toString() + ")";
 					break;
 				case 'datetime':
 				case 'datetime2':
-					dclgen += "PIC X(28)";
+					dclgen += "PIC X(29)";
 					break;
 				case 'float':
 					dclgen += "PIC S9(13).99";
@@ -245,7 +246,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 			if (field.IS_NULLABLE === 'YES') {
 				anyFieldNotNull = true;
-				dclgenNulls += " ".repeat(12) + "03 " + field.COLUMN_NAME.toUpperCase() + "NULL PIC 9(2) VALUE 0.\n";
+				dclgenNulls += " ".repeat(12) + "03 " + field.COLUMN_NAME.toUpperCase() + "NULL PIC 9(4) COMP-5.\n";
 			}
 
 		});
